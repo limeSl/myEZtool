@@ -61,9 +61,7 @@
 
     f.start.addEventListener('change', function() {
       if (!this.value) return;
-      let [h, m] = this.value.split(':').map(Number);
-      if (h >= 1 && h <= 6) h += 12;
-      this.value = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+      const [h, m] = this.value.split(':').map(Number);
       f.end.value = `${String((h + 1) % 24).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
     });
 
