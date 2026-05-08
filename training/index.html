@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>[연수]</title>
+  <style>
+    body { font-family: sans-serif; max-width: 480px; margin: 60px auto; padding: 0 24px; }
+    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .header h2 { margin: 0; }
+    .back { font-size: 13px; color: #aaa; text-decoration: none; }
+    .back:hover { color: #333; }
+
+    .tabs { display: flex; gap: 0; margin-bottom: 24px; border-bottom: 1px solid #eee; }
+    .tab { background: none; border: none; border-bottom: 2px solid transparent; padding: 8px 16px 8px 0; font-size: 15px; color: #aaa; cursor: pointer; margin-bottom: -1px; }
+    .tab.active { color: #333; border-bottom-color: #333; }
+    .tab:hover:not(.active) { color: #888; }
+
+    label { display: block; margin-bottom: 20px; font-size: 14px; color: #888; }
+    input, select, textarea {
+      display: block;
+      width: 100%;
+      box-sizing: border-box;
+      border: none;
+      border-bottom: 1px solid #ccc;
+      padding: 8px 0;
+      font-size: 16px;
+      outline: none;
+      background: transparent;
+      font-family: inherit;
+      color: #333;
+    }
+    input:focus, select:focus { border-bottom-color: #333; }
+    textarea { resize: vertical; min-height: 60px; border: 1px solid #ccc; padding: 8px; margin-top: 4px; border-radius: 2px; }
+    textarea:focus { border-color: #333; outline: none; }
+    .row { display: flex; gap: 24px; }
+    .row label { flex: 1; }
+    .hint { font-size: 12px; color: #bbb; margin-top: 2px; }
+
+    #addStatus { margin-top: 8px; font-size: 14px; color: #555; }
+
+    .file-btn {
+      background: none;
+      border: 1px solid #ccc;
+      padding: 8px 14px;
+      font-size: 14px;
+      color: #555;
+      cursor: pointer;
+      border-radius: 4px;
+      font-family: inherit;
+    }
+    .file-btn:hover { border-color: #333; color: #333; }
+
+    .stats { background: #f9f9f9; border-radius: 6px; padding: 16px; margin: 16px 0 24px; }
+    .stats-row { display: flex; gap: 16px; margin-bottom: 10px; }
+    .stat { flex: 1; }
+    .stat-val { font-size: 20px; font-weight: bold; color: #333; }
+    .stat-lbl { font-size: 12px; color: #888; margin-top: 2px; }
+    .stat-bar { height: 4px; background: #e8e8e8; border-radius: 2px; margin-bottom: 10px; }
+    .stat-bar-fill { height: 100%; background: #333; border-radius: 2px; transition: width .4s; }
+    .kind-row { display: flex; gap: 12px; font-size: 13px; color: #666; }
+
+    .list-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    .list-table th { text-align: left; color: #aaa; font-weight: normal; border-bottom: 1px solid #eee; padding: 6px 4px; font-size: 13px; }
+    .list-table td { padding: 8px 4px; border-bottom: 1px solid #f5f5f5; vertical-align: top; }
+    .td-num { color: #ccc; font-size: 12px; width: 20px; }
+    .td-name { font-weight: 500; color: #333; }
+    .td-date { color: #999; font-size: 12px; margin-top: 2px; }
+    .td-kind, .td-h { color: #888; font-size: 13px; }
+    .td-neis { font-size: 14px; }
+
+    .no-file { color: #aaa; font-size: 14px; margin-top: 12px; }
+    .no-file-add { color: #aaa; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h2>연수</h2>
+    <a href="../" class="back">← EZtool</a>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="view">목록 &amp; 통계</button>
+    <button class="tab" data-tab="add">기록 추가</button>
+  </div>
+
+  <!-- 목록 & 통계 탭 -->
+  <div id="view">
+    <button class="file-btn" id="openBtn">📂 파일 열기</button>
+    <p class="no-file" id="noFile">연수기록.md 파일을 열어주세요.</p>
+
+    <div id="statsBox" hidden>
+      <div class="stats">
+        <div class="stats-row">
+          <div class="stat">
+            <div class="stat-val" id="totalH">—</div>
+            <div class="stat-lbl">전체 이수시간</div>
+          </div>
+          <div class="stat">
+            <div class="stat-val" id="yearH">—</div>
+            <div class="stat-lbl">올해 이수시간</div>
+          </div>
+          <div class="stat">
+            <div class="stat-val" id="rate">—</div>
+            <div class="stat-lbl">달성률 (60h)</div>
+          </div>
+        </div>
+        <div class="stat-bar"><div class="stat-bar-fill" id="rateBar" style="width:0%"></div></div>
+        <div class="kind-row" id="kindRow"></div>
+      </div>
+
+      <table class="list-table">
+        <thead>
+          <tr>
+            <th class="td-num">#</th>
+            <th>연수명</th>
+            <th>종류</th>
+            <th>시간</th>
+            <th>나이스</th>
+          </tr>
+        </thead>
+        <tbody id="listBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 기록 추가 탭 -->
+  <div id="add" hidden>
+    <p class="no-file-add" id="noFileAdd">먼저 목록 탭에서 파일을 열어주세요.</p>
+    <form id="addForm" hidden>
+      <label>연수명
+        <input name="title" required>
+      </label>
+      <div class="row">
+        <label>날짜
+          <input name="date" type="date" required>
+        </label>
+        <label>시간 (선택)
+          <input name="time" type="time">
+          <div class="hint">없으면 종일</div>
+        </label>
+      </div>
+      <label>장소
+        <input name="location">
+      </label>
+      <div class="row">
+        <label>연수종류
+          <select name="kind">
+            <option value="직무">직무</option>
+            <option value="자율">자율</option>
+            <option value="특수">특수</option>
+          </select>
+        </label>
+        <label>이수시간
+          <input name="hours" type="number" min="0" step="0.5" placeholder="0">
+        </label>
+      </div>
+      <label>요약
+        <textarea name="summary"></textarea>
+      </label>
+      <label>소감 (선택)
+        <textarea name="note"></textarea>
+      </label>
+      <p><button type="submit">기록하기</button></p>
+      <div id="addStatus"></div>
+    </form>
+  </div>
+
+  <script>
+    let fileHandle = null;
+    let records = [];
+
+    // ── 탭 전환 ──────────────────────────────────────────────────────
+    document.querySelectorAll('.tab').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const target = btn.dataset.tab;
+        document.getElementById('view').hidden = target !== 'view';
+        document.getElementById('add').hidden  = target !== 'add';
+        if (target === 'add') syncAddTab();
+      });
+    });
+
+    function syncAddTab() {
+      const has = !!fileHandle;
+      document.getElementById('addForm').hidden   = !has;
+      document.getElementById('noFileAdd').hidden = has;
+    }
+
+    // ── 파일 열기 ─────────────────────────────────────────────────────
+    document.getElementById('openBtn').addEventListener('click', async () => {
+      try {
+        [fileHandle] = await window.showOpenFilePicker({
+          types: [{ description: 'Markdown', accept: { 'text/*': ['.md'] } }],
+        });
+        await loadFile();
+      } catch (e) {
+        if (e.name !== 'AbortError') alert('파일을 열지 못했어요: ' + e.message);
+      }
+    });
+
+    async function loadFile() {
+      const file = await fileHandle.getFile();
+      records = parseMarkdown(await file.text());
+      renderView();
+      document.getElementById('openBtn').textContent = '📂 ' + file.name;
+      document.getElementById('noFile').hidden  = true;
+      document.getElementById('statsBox').hidden = false;
+    }
+
+    // ── 마크다운 파싱 ─────────────────────────────────────────────────
+    function parseMarkdown(text) {
+      const lines = text.split('\n');
+      const rows = lines.filter(l => l.trim().startsWith('|') && !l.includes('---'));
+      if (rows.length <= 1) return [];
+      return rows.slice(1).map(row => {
+        const c = row.split('|').map(s => s.trim());
+        return {
+          title:    c[1]  || '',
+          location: c[2]  || '',
+          datetime: c[3]  || '',
+          kind:     c[4]  || '',
+          hours:    parseFloat(c[5]) || 0,
+          summary:  c[6]  || '',
+          note:     c[7]  || '',
+          neis:     c[10] || '',
+        };
+      }).filter(r => r.title);
+    }
+
+    // ── 렌더링 ────────────────────────────────────────────────────────
+    function renderView() {
+      const thisYear = String(new Date().getFullYear());
+      const totalH = records.reduce((s, r) => s + r.hours, 0);
+      const yearH  = records.filter(r => r.datetime.startsWith(thisYear)).reduce((s, r) => s + r.hours, 0);
+      const rate   = Math.min(100, Math.round(yearH / 60 * 100));
+
+      document.getElementById('totalH').textContent = totalH + 'h';
+      document.getElementById('yearH').textContent  = yearH + 'h';
+      document.getElementById('rate').textContent   = rate + '%';
+      document.getElementById('rateBar').style.width = rate + '%';
+
+      const counts = { 직무: 0, 자율: 0, 특수: 0 };
+      records.forEach(r => { if (r.kind in counts) counts[r.kind]++; });
+      document.getElementById('kindRow').innerHTML =
+        Object.entries(counts).map(([k, v]) => `<span>${k} <b>${v}</b>건</span>`).join(' · ');
+
+      const recent = [...records].reverse().slice(0, 20);
+      document.getElementById('listBody').innerHTML = recent.map((r, i) => `
+        <tr>
+          <td class="td-num">${i + 1}</td>
+          <td>
+            <div class="td-name">${esc(r.title)}</div>
+            <div class="td-date">${esc(r.datetime)}</div>
+          </td>
+          <td class="td-kind">${esc(r.kind)}</td>
+          <td class="td-h">${r.hours}h</td>
+          <td class="td-neis">${/x/i.test(r.neis) ? '✅' : '⬜'}</td>
+        </tr>
+      `).join('');
+    }
+
+    // ── 기록 추가 ─────────────────────────────────────────────────────
+    const addForm = document.getElementById('addForm');
+    addForm.date.value = new Date().toISOString().slice(0, 10);
+
+    addForm.addEventListener('submit', async e => {
+      e.preventDefault();
+      if (!fileHandle) return;
+
+      const f = addForm;
+      const datetime = f.time.value
+        ? `${f.date.value} ${f.time.value}`
+        : f.date.value;
+
+      const sanitize = s => s.replace(/\|/g, '｜').replace(/\n/g, ' ');
+      const cells = [
+        sanitize(f.title.value),
+        sanitize(f.location.value),
+        datetime,
+        f.kind.value,
+        (parseFloat(f.hours.value) || 0) + 'h',
+        sanitize(f.summary.value),
+        sanitize(f.note.value),
+        '',      // 자료
+        '[ ]',   // 수료증
+        '[ ]',   // 나이스 등록
+        '[ ]',   // 학점/호봉
+      ];
+      const newRow = '| ' + cells.join(' | ') + ' |';
+
+      try {
+        const file = await fileHandle.getFile();
+        const current = await file.text();
+        const writable = await fileHandle.createWritable();
+        await writable.write(current.trimEnd() + '\n' + newRow + '\n');
+        await writable.close();
+
+        await loadFile();
+        f.reset();
+        f.date.value = new Date().toISOString().slice(0, 10);
+        document.querySelector('.tab[data-tab="view"]').click();
+      } catch (err) {
+        document.getElementById('addStatus').textContent = '오류: ' + err.message;
+      }
+    });
+
+    function esc(s) {
+      return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+  </script>
+</body>
+</html>
