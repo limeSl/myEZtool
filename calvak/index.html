@@ -90,6 +90,10 @@
       if (e.key === 'Backspace' && !this.value) f.endH.focus();
     });
 
+    f.endH.addEventListener('keydown', function(e) {
+      if (e.key === 'Backspace' && !this.value) f.startM.focus();
+    });
+
     f.endH.addEventListener('focus', function() { this.select(); });
     f.endM.addEventListener('focus', function() { this.select(); });
 
