@@ -20,6 +20,9 @@
     input:focus { border-bottom-color: #333; }
     .row { display: flex; gap: 24px; }
     .row label { flex: 1; }
+    .time-row { display: flex; align-items: flex-end; gap: 2px; }
+    .time-row input { width: 32px; text-align: center; }
+    .time-row .sep { padding-bottom: 8px; font-size: 16px; line-height: 1; color: #aaa; }
     #status { margin-top: 8px; font-size: 14px; color: #555; }
   </style>
 </head>
@@ -34,10 +37,18 @@
         <input name="date" type="date" required>
       </label>
       <label>시작
-        <input name="start" type="time">
+        <div class="time-row">
+          <input name="startH" placeholder="09" maxlength="2" inputmode="numeric">
+          <span class="sep">:</span>
+          <input name="startM" placeholder="00" maxlength="2" inputmode="numeric">
+        </div>
       </label>
       <label>종료
-        <input name="end" type="time">
+        <div class="time-row">
+          <input name="endH" placeholder="10" maxlength="2" inputmode="numeric">
+          <span class="sep">:</span>
+          <input name="endM" placeholder="00" maxlength="2" inputmode="numeric">
+        </div>
       </label>
     </div>
     <label>장소 (선택)
@@ -55,42 +66,29 @@
     const f = document.getElementById('form');
     const status = document.getElementById('status');
 
-    const today = new Date();
-    f.date.value = today.toISOString().slice(0, 10);
+    f.date.value = new Date().toISOString().slice(0, 10);
     f.title.focus();
 
-    function trackHour(input, onChange) {
-      let buf = '', pending = null;
-      input.addEventListener('keydown', function(e) {
-        if (/^\d$/.test(e.key)) {
-          buf += e.key;
-        } else if (e.key === 'Tab' || e.key === 'ArrowRight') {
-          if (buf) {
-            const h = parseInt(buf);
-            if (h >= 0 && h <= 23) pending = h;
-            buf = '';
-          }
-        } else {
-          buf = '';
-        }
-      });
-      input.addEventListener('change', function() {
-        if (!this.value) { buf = ''; pending = null; return; }
-        const m = this.value.split(':')[1] || '00';
-        if (pending !== null) {
-          this.value = `${String(pending).padStart(2, '0')}:${m}`;
-          pending = null;
-        }
-        buf = '';
-        if (onChange) onChange(this.value);
-      });
-    }
-
-    trackHour(f.start, (val) => {
-      const [h, m] = val.split(':').map(Number);
-      f.end.value = `${String((h + 1) % 24).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    // 시 입력 후 자동으로 분으로 포커스
+    f.startH.addEventListener('input', function() {
+      this.value = this.value.replace(/\D/g, '');
+      if (this.value.length === 2 || (this.value.length === 1 && +this.value >= 3)) {
+        f.startM.focus();
+      }
+      fillEndTime();
     });
-    trackHour(f.end);
+    f.startM.addEventListener('input', function() {
+      this.value = this.value.replace(/\D/g, '');
+      fillEndTime();
+    });
+
+    function fillEndTime() {
+      const h = parseInt(f.startH.value);
+      const m = parseInt(f.startM.value) || 0;
+      if (isNaN(h)) return;
+      f.endH.value = String((h + 1) % 24).padStart(2, '0');
+      f.endM.value = String(m).padStart(2, '0');
+    }
 
     let tokenClient;
     let pendingEvent = null;
@@ -133,11 +131,16 @@
     f.addEventListener('submit', function(e) {
       e.preventDefault();
       const date = f.date.value;
-
       const event = { summary: f.title.value };
-      if (f.start.value) {
-        event.start = { dateTime: `${date}T${f.start.value}:00`, timeZone: 'Asia/Seoul' };
-        event.end   = { dateTime: `${date}T${f.end.value}:00`,   timeZone: 'Asia/Seoul' };
+
+      const sH = f.startH.value.padStart(2, '0');
+      const sM = (f.startM.value || '00').padStart(2, '0');
+      const eH = f.endH.value.padStart(2, '0');
+      const eM = (f.endM.value || '00').padStart(2, '0');
+
+      if (f.startH.value) {
+        event.start = { dateTime: `${date}T${sH}:${sM}:00`, timeZone: 'Asia/Seoul' };
+        event.end   = { dateTime: `${date}T${eH}:${eM}:00`, timeZone: 'Asia/Seoul' };
       } else {
         event.start = { date };
         event.end   = { date };
