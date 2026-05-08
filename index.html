@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>캘박</title>
+  <style>
+    form { width: fit-content; }
+    label { display: block; }
+    input {
+      display: block;
+      width: 100%;
+      box-sizing: border-box;
+      border: none;
+      border-bottom: 1px solid #ccc;
+      padding: 8px 0;
+      font-size: 16px;
+      outline: none;
+      background: transparent;
+    }
+    input:focus { border-bottom-color: #333; }
+    .row { display: flex; gap: 24px; }
+    .row label { flex: 1; }
+  </style>
+</head>
+<body>
+  <h2>캘박</h2>
+  <form id="form">
+    <label>일정명
+      <input name="title" required>
+    </label>
+    <div class="row">
+      <label>날짜
+        <input name="date" type="date" required>
+      </label>
+      <label>시작
+        <input name="start" type="time">
+      </label>
+      <label>종료
+        <input name="end" type="time">
+      </label>
+    </div>
+    <label>장소 (선택)
+      <input name="location">
+    </label>
+    <p><button type="submit">구글 캘린더에 추가</button></p>
+  </form>
+
+  <script>
+    const f = document.getElementById('form');
+
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    f.date.value = `${yyyy}-${mm}-${dd}`;
+    f.title.focus();
+
+    f.start.addEventListener('input', function() {
+      if (!this.value) return;
+      const [h, m] = this.value.split(':').map(Number);
+      const endH = String((h + 1) % 24).padStart(2, '0');
+      const endM = String(m).padStart(2, '0');
+      f.end.value = `${endH}:${endM}`;
+    });
+
+    f.addEventListener('submit', function(e) {
+      e.preventDefault();
+      const date = f.date.value.replace(/-/g, '');
+      let dates;
+      if (f.start.value) {
+        const start = f.start.value.replace(':', '') + '00';
+        const end   = f.end.value.replace(':', '') + '00';
+        dates = `${date}T${start}/${date}T${end}`;
+      } else {
+        dates = `${date}/${date}`;
+      }
+
+      const params = new URLSearchParams({ action: 'TEMPLATE', text: f.title.value, dates });
+      if (f.location.value) params.set('location', f.location.value);
+
+      window.open('https://calendar.google.com/calendar/render?' + params.toString(), '_blank');
+    });
+  </script>
+</body>
+</html>
