@@ -83,6 +83,13 @@
       fillEndTime();
     });
 
+    f.startM.addEventListener('keydown', function(e) {
+      if (e.key === 'Backspace' && !this.value) f.startH.focus();
+    });
+    f.endM.addEventListener('keydown', function(e) {
+      if (e.key === 'Backspace' && !this.value) f.endH.focus();
+    });
+
     f.endH.addEventListener('focus', function() { this.select(); });
     f.endM.addEventListener('focus', function() { this.select(); });
 
