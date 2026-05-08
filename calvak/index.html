@@ -38,16 +38,16 @@
       </label>
       <label>시작
         <div class="time-row">
-          <input name="startH" placeholder="09" maxlength="2" inputmode="numeric">
+          <input name="startH" placeholder="--" maxlength="2" inputmode="numeric">
           <span class="sep">:</span>
-          <input name="startM" placeholder="00" maxlength="2" inputmode="numeric">
+          <input name="startM" placeholder="--" maxlength="2" inputmode="numeric">
         </div>
       </label>
       <label>종료
         <div class="time-row">
-          <input name="endH" placeholder="10" maxlength="2" inputmode="numeric">
+          <input name="endH" placeholder="--" maxlength="2" inputmode="numeric">
           <span class="sep">:</span>
-          <input name="endM" placeholder="00" maxlength="2" inputmode="numeric">
+          <input name="endM" placeholder="--" maxlength="2" inputmode="numeric">
         </div>
       </label>
     </div>
@@ -79,7 +79,15 @@
     });
     f.startM.addEventListener('input', function() {
       this.value = this.value.replace(/\D/g, '');
+      if (this.value.length === 2) f.endH.focus();
       fillEndTime();
+    });
+
+    f.endH.addEventListener('input', function() {
+      this.value = this.value.replace(/\D/g, '');
+      if (this.value.length === 2 || (this.value.length === 1 && +this.value >= 3)) {
+        f.endM.focus();
+      }
     });
 
     function fillEndTime() {
