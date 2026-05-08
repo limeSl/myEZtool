@@ -42,7 +42,7 @@
     <label>장소 (선택)
       <input name="location">
     </label>
-    <p><button type="submit">구글 캘린더에 추가</button></p>
+    <p><button type="submit">캘린더에 추가</button></p>
   </form>
 
   <script>
@@ -66,19 +66,32 @@
     f.addEventListener('submit', function(e) {
       e.preventDefault();
       const date = f.date.value.replace(/-/g, '');
-      let dates;
+
+      let dtStart, dtEnd;
       if (f.start.value) {
-        const start = f.start.value.replace(':', '') + '00';
-        const end   = f.end.value.replace(':', '') + '00';
-        dates = `${date}T${start}/${date}T${end}`;
+        dtStart = `DTSTART:${date}T${f.start.value.replace(':', '')}00`;
+        dtEnd   = `DTEND:${date}T${f.end.value.replace(':', '')}00`;
       } else {
-        dates = `${date}/${date}`;
+        dtStart = `DTSTART;VALUE=DATE:${date}`;
+        dtEnd   = `DTEND;VALUE=DATE:${date}`;
       }
 
-      const params = new URLSearchParams({ action: 'TEMPLATE', text: f.title.value, dates });
-      if (f.location.value) params.set('location', f.location.value);
+      const lines = [
+        'BEGIN:VCALENDAR',
+        'VERSION:2.0',
+        'BEGIN:VEVENT',
+        `SUMMARY:${f.title.value}`,
+        dtStart,
+        dtEnd,
+      ];
+      if (f.location.value) lines.push(`LOCATION:${f.location.value}`);
+      lines.push('END:VEVENT', 'END:VCALENDAR');
 
-      window.open('https://calendar.google.com/calendar/render?' + params.toString(), '_blank');
+      const blob = new Blob([lines.join('\r\n')], { type: 'text/calendar' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `${f.title.value}.ics`;
+      a.click();
     });
   </script>
 </body>
