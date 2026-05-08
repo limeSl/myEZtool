@@ -34,10 +34,10 @@
         <input name="date" type="date" required>
       </label>
       <label>시작
-        <input name="start" placeholder="09:00" maxlength="5">
+        <input name="start" type="time">
       </label>
       <label>종료
-        <input name="end" placeholder="10:00" maxlength="5">
+        <input name="end" type="time">
       </label>
     </div>
     <label>장소 (선택)
@@ -60,9 +60,8 @@
     f.title.focus();
 
     f.start.addEventListener('change', function() {
-      const match = this.value.match(/^(\d{1,2}):(\d{2})$/);
-      if (!match) return;
-      const h = parseInt(match[1]), m = parseInt(match[2]);
+      if (!this.value) return;
+      const [h, m] = this.value.split(':').map(Number);
       f.end.value = `${String((h + 1) % 24).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
     });
 
