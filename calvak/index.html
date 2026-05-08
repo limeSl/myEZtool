@@ -59,9 +59,11 @@
     f.date.value = today.toISOString().slice(0, 10);
     f.title.focus();
 
-    f.start.addEventListener('input', function() {
+    f.start.addEventListener('change', function() {
       if (!this.value) return;
-      const [h, m] = this.value.split(':').map(Number);
+      let [h, m] = this.value.split(':').map(Number);
+      if (h >= 1 && h <= 6) h += 12;
+      this.value = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
       f.end.value = `${String((h + 1) % 24).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
     });
 
