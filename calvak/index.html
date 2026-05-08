@@ -59,11 +59,38 @@
     f.date.value = today.toISOString().slice(0, 10);
     f.title.focus();
 
-    f.start.addEventListener('change', function() {
-      if (!this.value) return;
-      const [h, m] = this.value.split(':').map(Number);
+    function trackHour(input, onChange) {
+      let buf = '', pending = null;
+      input.addEventListener('keydown', function(e) {
+        if (/^\d$/.test(e.key)) {
+          buf += e.key;
+        } else if (e.key === 'Tab' || e.key === 'ArrowRight') {
+          if (buf) {
+            const h = parseInt(buf);
+            if (h >= 0 && h <= 23) pending = h;
+            buf = '';
+          }
+        } else {
+          buf = '';
+        }
+      });
+      input.addEventListener('change', function() {
+        if (!this.value) { buf = ''; pending = null; return; }
+        const m = this.value.split(':')[1] || '00';
+        if (pending !== null) {
+          this.value = `${String(pending).padStart(2, '0')}:${m}`;
+          pending = null;
+        }
+        buf = '';
+        if (onChange) onChange(this.value);
+      });
+    }
+
+    trackHour(f.start, (val) => {
+      const [h, m] = val.split(':').map(Number);
       f.end.value = `${String((h + 1) % 24).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
     });
+    trackHour(f.end);
 
     let tokenClient;
     let pendingEvent = null;
