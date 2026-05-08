@@ -20,6 +20,7 @@
     input:focus { border-bottom-color: #333; }
     .row { display: flex; gap: 24px; }
     .row label { flex: 1; }
+    #status { margin-top: 8px; font-size: 14px; color: #555; }
   </style>
 </head>
 <body>
@@ -43,55 +44,81 @@
       <input name="location">
     </label>
     <p><button type="submit">캘린더에 추가</button></p>
+    <div id="status"></div>
   </form>
 
+  <script src="https://accounts.google.com/gsi/client"></script>
   <script>
+    const CLIENT_ID = '256572036104-45639a7v2cicg5pbfb0ip5qv8ml2ardr.apps.googleusercontent.com';
+    const SCOPE = 'https://www.googleapis.com/auth/calendar.events';
+
     const f = document.getElementById('form');
+    const status = document.getElementById('status');
 
     const today = new Date();
-    const yyyy = today.getFullYear();
-    const mm = String(today.getMonth() + 1).padStart(2, '0');
-    const dd = String(today.getDate()).padStart(2, '0');
-    f.date.value = `${yyyy}-${mm}-${dd}`;
+    f.date.value = today.toISOString().slice(0, 10);
     f.title.focus();
 
     f.start.addEventListener('input', function() {
       if (!this.value) return;
       const [h, m] = this.value.split(':').map(Number);
-      const endH = String((h + 1) % 24).padStart(2, '0');
-      const endM = String(m).padStart(2, '0');
-      f.end.value = `${endH}:${endM}`;
+      f.end.value = `${String((h + 1) % 24).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
     });
+
+    let tokenClient;
+    let pendingEvent = null;
+
+    window.onload = () => {
+      tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: CLIENT_ID,
+        scope: SCOPE,
+        callback: async (resp) => {
+          if (resp.error) { status.textContent = '인증 실패: ' + resp.error; return; }
+          await insertEvent(pendingEvent, resp.access_token);
+        }
+      });
+    };
+
+    async function insertEvent(event, token) {
+      status.textContent = '추가 중...';
+      const res = await fetch(
+        'https://www.googleapis.com/calendar/v3/calendars/primary/events',
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + token,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(event),
+        }
+      );
+      if (res.ok) {
+        status.textContent = '추가됐어요!';
+        f.reset();
+        f.date.value = new Date().toISOString().slice(0, 10);
+        f.title.focus();
+      } else {
+        const err = await res.json();
+        status.textContent = '오류: ' + err.error.message;
+      }
+    }
 
     f.addEventListener('submit', function(e) {
       e.preventDefault();
-      const date = f.date.value.replace(/-/g, '');
+      const date = f.date.value;
 
-      let dtStart, dtEnd;
+      const event = { summary: f.title.value };
       if (f.start.value) {
-        dtStart = `DTSTART:${date}T${f.start.value.replace(':', '')}00`;
-        dtEnd   = `DTEND:${date}T${f.end.value.replace(':', '')}00`;
+        event.start = { dateTime: `${date}T${f.start.value}:00`, timeZone: 'Asia/Seoul' };
+        event.end   = { dateTime: `${date}T${f.end.value}:00`,   timeZone: 'Asia/Seoul' };
       } else {
-        dtStart = `DTSTART;VALUE=DATE:${date}`;
-        dtEnd   = `DTEND;VALUE=DATE:${date}`;
+        event.start = { date };
+        event.end   = { date };
       }
+      if (f.location.value) event.location = f.location.value;
 
-      const lines = [
-        'BEGIN:VCALENDAR',
-        'VERSION:2.0',
-        'BEGIN:VEVENT',
-        `SUMMARY:${f.title.value}`,
-        dtStart,
-        dtEnd,
-      ];
-      if (f.location.value) lines.push(`LOCATION:${f.location.value}`);
-      lines.push('END:VEVENT', 'END:VCALENDAR');
-
-      const blob = new Blob([lines.join('\r\n')], { type: 'text/calendar' });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = `${f.title.value}.ics`;
-      a.click();
+      pendingEvent = event;
+      tokenClient.requestAccessToken({ prompt: '' });
     });
   </script>
 </body>
