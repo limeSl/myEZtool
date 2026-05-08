@@ -83,6 +83,9 @@
       fillEndTime();
     });
 
+    f.endH.addEventListener('focus', function() { this.select(); });
+    f.endM.addEventListener('focus', function() { this.select(); });
+
     f.endH.addEventListener('input', function() {
       this.value = this.value.replace(/\D/g, '');
       if (this.value.length === 2 || (this.value.length === 1 && +this.value >= 3)) {
