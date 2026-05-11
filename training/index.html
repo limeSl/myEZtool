@@ -39,7 +39,7 @@
     .record.editing { cursor: default; }
     .record-title { font-size: 16px; font-weight: bold; color: #333; margin: 0 0 4px; }
     .record-meta { font-size: 13px; color: #aaa; margin: 0 0 8px; }
-    .record-body { display: flex; gap: 6px; align-items: flex-start; font-size: 14px; color: #555; margin: 2px 0; }
+    .record-body { font-size: 14px; color: #555; margin: 2px 0; }
     .record-note { display: none; gap: 6px; align-items: flex-start; font-size: 14px; color: #555; margin: 2px 0; }
     .record.editing .record-note { display: flex; }
     .record-body .dot, .record-note .dot { flex-shrink: 0; }
@@ -338,8 +338,8 @@
         const mdLink = r.material.match(/\[([^\]]+)\]\(([^)]+)\)/);
         const matUrl = mdLink ? mdLink[2] : (r.material.startsWith('http') ? r.material : null);
         const matHtml = matUrl ? `<p class="record-footer"><a class="mat-link" href="${ea(matUrl)}" target="_blank">열기</a></p>` : '';
-        const sumHtml = r.summary ? `<p class="record-body"><span class="dot">·</span><span>${esc(r.summary).replace(/⏎/g, '<br>')}</span></p>` : '';
-        const noteHtml = r.note ? `<p class="record-note"><span class="dot">·</span><span>${esc(r.note).replace(/⏎/g, '<br>')}</span></p>` : '';
+        const sumHtml = r.summary ? `<p class="record-body">${esc(r.summary).replace(/⏎/g, '<br>')}</p>` : '';
+        const noteHtml = r.note ? `<p class="record-note"><span class="dot">→</span><span>${esc(r.note).replace(/⏎/g, '<br>')}</span></p>` : '';
         return `
           <div class="record" data-idx="${r._idx}">
             <p class="record-title">${esc(r.title)}</p>
