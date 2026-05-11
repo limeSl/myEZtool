@@ -337,14 +337,14 @@
       document.getElementById('recordList').innerHTML = recent.map(r => {
         const mdLink = r.material.match(/\[([^\]]+)\]\(([^)]+)\)/);
         const matUrl = mdLink ? mdLink[2] : (r.material.startsWith('http') ? r.material : null);
-        const matHtml = matUrl ? `<p class="record-footer"><a class="mat-link" href="${ea(matUrl)}" target="_blank">열기</a></p>` : '';
+        const matHtml = matUrl ? ` · <a class="mat-link" href="${ea(matUrl)}" target="_blank">열기</a>` : '';
         const sumHtml = r.summary ? `<p class="record-body">${esc(r.summary).replace(/⏎/g, '<br>')}</p>` : '';
         const noteHtml = r.note ? `<p class="record-note"><span class="dot">→</span><span>${esc(r.note).replace(/⏎/g, '<br>')}</span></p>` : '';
         return `
           <div class="record" data-idx="${r._idx}">
             <p class="record-title">${esc(r.title)}</p>
-            <p class="record-meta">${[esc(r.datetime.split(' ')[0]), esc(r.location), r.hours + 'h'].filter(Boolean).join(' · ')}</p>
-            ${sumHtml}${noteHtml}${matHtml}
+            <p class="record-meta">${[esc(r.datetime.split(' ')[0]), esc(r.location), r.hours + 'h'].filter(Boolean).join(' · ')}${matHtml}</p>
+            ${sumHtml}${noteHtml}
           </div>`;
       }).join('');
 
