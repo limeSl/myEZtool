@@ -36,11 +36,16 @@
     /* 연수 목록 테이블 */
     #recordList table { width: 100%; border-collapse: collapse; font-size: 14px; }
     #recordList th { text-align: left; color: #888; font-weight: normal; border-bottom: 1px solid #ccc; padding: 4px 8px; white-space: nowrap; }
-    #recordList td { padding: 6px 8px; border-bottom: 1px solid #eee; color: #333; vertical-align: top; word-break: keep-all; }
-    #recordList tr[data-idx]:hover { background: #f9f9f9; cursor: pointer; }
-    #recordList tr.editing { background: #f9f9f9; cursor: default; }
-    #recordList td.col-title { min-width: 160px; }
-    #recordList td.col-summary { min-width: 150px; }
+    #recordList tr.record-top td { padding: 8px 8px 2px; color: #333; white-space: nowrap; vertical-align: middle; }
+    #recordList tr.record-sub td { padding: 0 8px 8px; border-bottom: 1px solid #eee; font-size: 13px; color: #888; white-space: normal; }
+    #recordList tr.record-top:hover td,
+    #recordList tr.record-top:hover + tr.record-sub td { background: #f9f9f9; cursor: pointer; }
+    #recordList tr.record-sub:hover td { background: #f9f9f9; cursor: pointer; }
+    #recordList tr.record-top.editing td,
+    #recordList tr.record-top.editing + tr.record-sub td { background: #f9f9f9; }
+    #recordList td.col-location { white-space: normal; width: 80px; }
+    #recordList a.mat-link { color: #555; text-decoration: none; font-size: 13px; border-bottom: 1px solid #ccc; padding: 2px 0; }
+    #recordList a.mat-link:hover { color: #333; border-bottom-color: #333; }
 
     /* Drive 버튼 */
     .material-row { display: flex; align-items: flex-end; gap: 8px; }
@@ -331,26 +336,41 @@
       document.getElementById('recordList').innerHTML = recent.length === 0 ? '' : `
         <table>
           <thead><tr>
-            <th>일시</th><th>연수명</th><th>장소</th><th>종류</th><th>시간</th><th>요약</th><th>자료</th>
+            <th>일시</th><th>연수명</th><th>장소</th><th>시간</th><th>자료</th>
           </tr></thead>
-          <tbody>${recent.map(r => `
-            <tr data-idx="${r._idx}">
-              <td>${esc(r.datetime)}</td>
-              <td class="col-title">${esc(r.title)}</td>
-              <td>${esc(r.location)}</td>
-              <td>${esc(r.kind)}</td>
+          <tbody>${recent.map(r => {
+            const mdLink = r.material.match(/\[([^\]]+)\]\(([^)]+)\)/);
+            const matUrl = mdLink ? mdLink[2] : (r.material.startsWith('http') ? r.material : null);
+            const matHtml = matUrl ? `<a class="mat-link" href="${ea(matUrl)}" target="_blank">열기</a>` : esc(r.material);
+            const subText = [r.summary && esc(r.summary), r.note && esc(r.note)].filter(Boolean).join(' &nbsp;·&nbsp; ');
+            return `
+            <tr class="record-top" data-idx="${r._idx}">
+              <td>${esc(r.datetime.split(' ')[0])}</td>
+              <td>${esc(r.title)}</td>
+              <td class="col-location">${esc(r.location)}</td>
               <td>${r.hours}h</td>
-              <td class="col-summary">${esc(r.summary)}</td>
-              <td>${parseMaterial(r.material)}</td>
-            </tr>`).join('')}
+              <td>${matHtml}</td>
+            </tr>
+            <tr class="record-sub" data-idx="${r._idx}">
+              <td colspan="5">${subText}</td>
+            </tr>`;
+          }).join('')}
           </tbody>
         </table>`;
 
       document.querySelectorAll('#recordList tr[data-idx]').forEach(el => {
         el.addEventListener('click', e => {
           if (e.target.tagName === 'A') return;
+          const topEl = el.classList.contains('record-top') ? el : el.previousElementSibling;
+          const subEl = topEl.nextElementSibling;
+          const nextEl = subEl.nextElementSibling;
+          if (nextEl && nextEl.classList.contains('edit-row')) {
+            nextEl.remove();
+            topEl.classList.remove('editing');
+            return;
+          }
           if (document.querySelector('tr.editing')) return;
-          openEdit(parseInt(el.dataset.idx), el);
+          openEdit(parseInt(topEl.dataset.idx), topEl);
         });
       });
     }
@@ -372,7 +392,7 @@
       const timeVal = dtParts[1] || '';
       const editRow = document.createElement('tr');
       editRow.className = 'edit-row';
-      editRow.innerHTML = `<td colspan="7" style="padding:16px 8px;background:#fff">
+      editRow.innerHTML = `<td colspan="5" style="padding:16px 8px;background:#fff">
         <div style="font-size:13px;color:#888;margin-bottom:2px">연수명</div>
         <input class="ed" data-f="title" value="${ea(r.title)}">
         <div style="display:flex;gap:24px;margin-top:12px">
@@ -422,7 +442,8 @@
         </p>
         <div class="ed-status" style="font-size:13px;color:#888;margin-top:4px"></div>
       </td>`;
-      el.insertAdjacentElement('afterend', editRow);
+      const subEl = el.nextElementSibling;
+      subEl.insertAdjacentElement('afterend', editRow);
       editRow.querySelector('.ed-drive').addEventListener('click', () => {
         pickerTarget = editRow.querySelector('[data-f="material"]');
         driveTokenClient.requestAccessToken({ prompt: '' });
@@ -433,7 +454,7 @@
 
     async function saveEdit(idx, el) {
       const r = records[idx];
-      const form = el.nextElementSibling;
+      const form = el.nextElementSibling.nextElementSibling;
       const dateVal = form.querySelector('[data-f="date"]').value;
       const timeVal = form.querySelector('[data-f="time"]').value;
       r.datetime = timeVal ? `${dateVal} ${timeVal}` : dateVal;
