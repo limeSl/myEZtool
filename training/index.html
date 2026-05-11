@@ -359,7 +359,11 @@
             }
             return;
           }
-          if (document.querySelector('.record.editing')) return;
+          const editing = document.querySelector('.record.editing');
+          if (editing) {
+            editing.nextElementSibling.remove();
+            editing.classList.remove('editing');
+          }
           openEdit(parseInt(el.dataset.idx), el);
         });
       });
