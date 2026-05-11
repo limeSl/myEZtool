@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>[캘박]</title>
+  <title>캘박</title>
   <style>
     form { width: fit-content; }
     label { display: block; }
@@ -24,19 +24,14 @@
     .time-row input { width: 32px; text-align: center; }
     .time-row .sep { padding-bottom: 8px; font-size: 16px; line-height: 1; color: #aaa; }
     #status { margin-top: 8px; font-size: 14px; color: #555; }
-    .header { display: flex; justify-content: space-between; align-items: center; }
-    .header h2 { margin: 0; }
     .back { font-size: 13px; color: #aaa; text-decoration: none; }
     .back:hover { color: #333; }
   </style>
 </head>
 <body>
   <form id="form">
-  <div class="header">
-    <h2>캘박</h2>
-    <a href="../" class="back">← EZtool</a>
-  </div>
-    <label>일정
+    <label style="position:relative">일정
+      <a href="../" class="back" style="position:absolute;right:0;top:0">← EZtool</a>
       <input name="title" required>
     </label>
     <div class="row">
