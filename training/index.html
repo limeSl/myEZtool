@@ -33,19 +33,19 @@
     /* 통계 */
     .stat-line { font-size: 14px; color: #555; margin: 6px 0; }
 
-    /* 연수 목록 테이블 */
-    #recordList table { width: 100%; border-collapse: collapse; font-size: 14px; }
-    #recordList th { text-align: left; color: #888; font-weight: normal; border-bottom: 1px solid #ccc; padding: 4px 8px; white-space: nowrap; }
-    #recordList tr.record-top td { padding: 8px 8px 2px; color: #333; white-space: nowrap; vertical-align: middle; }
-    #recordList tr.record-sub td { padding: 0 8px 8px; border-bottom: 1px solid #eee; font-size: 13px; color: #888; white-space: normal; }
-    #recordList tr.record-top:hover td,
-    #recordList tr.record-top:hover + tr.record-sub td { background: #f9f9f9; cursor: pointer; }
-    #recordList tr.record-sub:hover td { background: #f9f9f9; cursor: pointer; }
-    #recordList tr.record-top.editing td,
-    #recordList tr.record-top.editing + tr.record-sub td { background: #f9f9f9; }
-    #recordList td.col-location { white-space: normal; width: 80px; }
-    #recordList a.mat-link { color: #555; text-decoration: none; font-size: 13px; border-bottom: 1px solid #ccc; padding: 2px 0; }
-    #recordList a.mat-link:hover { color: #333; border-bottom-color: #333; }
+    /* 연수 카드 그리드 */
+    .record-pair { display: flex; gap: 40px; border-bottom: 1px solid #eee; padding: 16px 0; }
+    .record-pair:last-of-type { border-bottom: none; }
+    .record { flex: 1; min-width: 0; cursor: pointer; }
+    .record.editing { cursor: default; }
+    .record-title { font-size: 16px; font-weight: bold; color: #333; margin: 0 0 4px; }
+    .record-meta { font-size: 13px; color: #aaa; margin: 0 0 8px; }
+    .record-body { font-size: 14px; color: #555; margin: 2px 0; }
+    .record-note { font-size: 14px; color: #888; margin: 2px 0; }
+    .record-footer { margin-top: 8px; }
+    .mat-link { color: #555; text-decoration: none; font-size: 13px; border-bottom: 1px solid #ccc; padding: 2px 0; }
+    .mat-link:hover { color: #333; border-bottom-color: #333; }
+    .edit-row { padding: 16px 0; border-bottom: 1px solid #eee; }
 
     /* Drive 버튼 */
     .material-row { display: flex; align-items: flex-end; gap: 8px; }
@@ -333,44 +333,39 @@
 
       const recent = [...records].reverse().slice(0, 20);
       document.getElementById('emptyMsg').hidden = recent.length > 0;
-      document.getElementById('recordList').innerHTML = recent.length === 0 ? '' : `
-        <table>
-          <thead><tr>
-            <th>일시</th><th>연수명</th><th>장소</th><th>시간</th><th>자료</th>
-          </tr></thead>
-          <tbody>${recent.map(r => {
+      const pairs = [];
+      for (let i = 0; i < recent.length; i += 2) pairs.push(recent.slice(i, i + 2));
+      document.getElementById('recordList').innerHTML = pairs.map(pair => `
+        <div class="record-pair">
+          ${pair.map(r => {
             const mdLink = r.material.match(/\[([^\]]+)\]\(([^)]+)\)/);
             const matUrl = mdLink ? mdLink[2] : (r.material.startsWith('http') ? r.material : null);
-            const matHtml = matUrl ? `<a class="mat-link" href="${ea(matUrl)}" target="_blank">열기</a>` : esc(r.material);
-            const subText = [r.summary && esc(r.summary), r.note && esc(r.note)].filter(Boolean).join(' &nbsp;·&nbsp; ');
+            const matHtml = matUrl ? `<p class="record-footer"><a class="mat-link" href="${ea(matUrl)}" target="_blank">열기</a></p>` : '';
             return `
-            <tr class="record-top" data-idx="${r._idx}">
-              <td>${esc(r.datetime.split(' ')[0])}</td>
-              <td>${esc(r.title)}</td>
-              <td class="col-location">${esc(r.location)}</td>
-              <td>${r.hours}h</td>
-              <td>${matHtml}</td>
-            </tr>
-            <tr class="record-sub" data-idx="${r._idx}">
-              <td colspan="5">${subText}</td>
-            </tr>`;
+              <div class="record" data-idx="${r._idx}">
+                <p class="record-title">${esc(r.title)}</p>
+                <p class="record-meta">${[esc(r.datetime.split(' ')[0]), esc(r.location), r.hours + 'h'].filter(Boolean).join(' · ')}</p>
+                ${r.summary ? `<p class="record-body">${esc(r.summary)}</p>` : ''}
+                ${r.note    ? `<p class="record-note">${esc(r.note)}</p>`    : ''}
+                ${matHtml}
+              </div>`;
           }).join('')}
-          </tbody>
-        </table>`;
+        </div>`).join('');
 
-      document.querySelectorAll('#recordList tr[data-idx]').forEach(el => {
+      document.querySelectorAll('#recordList .record').forEach(el => {
         el.addEventListener('click', e => {
           if (e.target.tagName === 'A') return;
-          const topEl = el.classList.contains('record-top') ? el : el.previousElementSibling;
-          const subEl = topEl.nextElementSibling;
-          const nextEl = subEl.nextElementSibling;
-          if (nextEl && nextEl.classList.contains('edit-row')) {
-            nextEl.remove();
-            topEl.classList.remove('editing');
+          const pairEl = el.parentElement;
+          const nextEl = pairEl.nextElementSibling;
+          if (nextEl?.classList.contains('edit-row')) {
+            if (el.classList.contains('editing')) {
+              nextEl.remove();
+              el.classList.remove('editing');
+            }
             return;
           }
-          if (document.querySelector('tr.editing')) return;
-          openEdit(parseInt(topEl.dataset.idx), topEl);
+          if (document.querySelector('.record.editing')) return;
+          openEdit(parseInt(el.dataset.idx), el);
         });
       });
     }
@@ -390,9 +385,9 @@
       const dtParts = r.datetime.split(' ');
       const dateVal = dtParts[0] || '';
       const timeVal = dtParts[1] || '';
-      const editRow = document.createElement('tr');
+      const editRow = document.createElement('div');
       editRow.className = 'edit-row';
-      editRow.innerHTML = `<td colspan="5" style="padding:16px 8px;background:#fff">
+      editRow.innerHTML = `<div style="padding:0">
         <div style="font-size:13px;color:#888;margin-bottom:2px">연수명</div>
         <input class="ed" data-f="title" value="${ea(r.title)}">
         <div style="display:flex;gap:24px;margin-top:12px">
@@ -441,9 +436,8 @@
           <button type="button" class="ed-cancel" style="margin-left:12px;color:#aaa;background:none;border:none;cursor:pointer;font-family:inherit;font-size:16px">취소</button>
         </p>
         <div class="ed-status" style="font-size:13px;color:#888;margin-top:4px"></div>
-      </td>`;
-      const subEl = el.nextElementSibling;
-      subEl.insertAdjacentElement('afterend', editRow);
+      </div>`;
+      el.parentElement.insertAdjacentElement('afterend', editRow);
       editRow.querySelector('.ed-drive').addEventListener('click', () => {
         pickerTarget = editRow.querySelector('[data-f="material"]');
         driveTokenClient.requestAccessToken({ prompt: '' });
@@ -454,7 +448,7 @@
 
     async function saveEdit(idx, el) {
       const r = records[idx];
-      const form = el.nextElementSibling.nextElementSibling;
+      const form = el.parentElement.nextElementSibling;
       const dateVal = form.querySelector('[data-f="date"]').value;
       const timeVal = form.querySelector('[data-f="time"]').value;
       r.datetime = timeVal ? `${dateVal} ${timeVal}` : dateVal;
