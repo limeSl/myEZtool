@@ -33,10 +33,9 @@
     /* 통계 */
     .stat-line { font-size: 14px; color: #555; margin: 6px 0; }
 
-    /* 연수 카드 그리드 */
-    .record-pair { display: flex; gap: 40px; border-bottom: 1px solid #eee; padding: 16px 0; }
-    .record-pair:last-of-type { border-bottom: none; }
-    .record { flex: 1; min-width: 0; cursor: pointer; }
+    /* 연수 카드 목록 */
+    .record { padding: 16px 0; border-bottom: 1px solid #eee; cursor: pointer; }
+    .record:last-child { border-bottom: none; }
     .record.editing { cursor: default; }
     .record-title { font-size: 16px; font-weight: bold; color: #333; margin: 0 0 4px; }
     .record-meta { font-size: 13px; color: #aaa; margin: 0 0 8px; }
@@ -311,7 +310,7 @@
         '# 연수 기록\n\n' +
         '| 연수명 | 장소 | 일시 | 연수종류 | 이수시간 | 요약 | 소감 | 자료 | 수료증 | 나이스 등록 | 학점/호봉 |\n' +
         '|--------|------|------|--------|--------|------|------|------|--------|------------|---------|';
-      const san = s => String(s).replace(/\|/g, '｜').replace(/\n/g, ' ');
+      const san = s => String(s).replace(/\|/g, '｜').replace(/\n/g, '⏎');
       const rows = records.map(r =>
         `| ${san(r.title)} | ${san(r.location)} | ${r.datetime} | ${r.kind} | ${r.hours}h | ${san(r.summary)} | ${san(r.note)} | ${san(r.material)} | ${r.cert} | ${r.neis} | ${r.credit} |`
       );
@@ -333,30 +332,24 @@
 
       const recent = [...records].reverse().slice(0, 20);
       document.getElementById('emptyMsg').hidden = recent.length > 0;
-      const pairs = [];
-      for (let i = 0; i < recent.length; i += 2) pairs.push(recent.slice(i, i + 2));
-      document.getElementById('recordList').innerHTML = pairs.map(pair => `
-        <div class="record-pair">
-          ${pair.map(r => {
-            const mdLink = r.material.match(/\[([^\]]+)\]\(([^)]+)\)/);
-            const matUrl = mdLink ? mdLink[2] : (r.material.startsWith('http') ? r.material : null);
-            const matHtml = matUrl ? `<p class="record-footer"><a class="mat-link" href="${ea(matUrl)}" target="_blank">열기</a></p>` : '';
-            return `
-              <div class="record" data-idx="${r._idx}">
-                <p class="record-title">${esc(r.title)}</p>
-                <p class="record-meta">${[esc(r.datetime.split(' ')[0]), esc(r.location), r.hours + 'h'].filter(Boolean).join(' · ')}</p>
-                ${r.summary ? `<p class="record-body">${esc(r.summary)}</p>` : ''}
-                ${r.note    ? `<p class="record-note">${esc(r.note)}</p>`    : ''}
-                ${matHtml}
-              </div>`;
-          }).join('')}
-        </div>`).join('');
+      document.getElementById('recordList').innerHTML = recent.map(r => {
+        const mdLink = r.material.match(/\[([^\]]+)\]\(([^)]+)\)/);
+        const matUrl = mdLink ? mdLink[2] : (r.material.startsWith('http') ? r.material : null);
+        const matHtml = matUrl ? `<p class="record-footer"><a class="mat-link" href="${ea(matUrl)}" target="_blank">열기</a></p>` : '';
+        const sumHtml = r.summary ? `<p class="record-body">· ${esc(r.summary).replace(/⏎/g, '<br>')}</p>` : '';
+        const noteHtml = r.note ? `<p class="record-note">· ${esc(r.note).replace(/⏎/g, '<br>')}</p>` : '';
+        return `
+          <div class="record" data-idx="${r._idx}">
+            <p class="record-title">${esc(r.title)}</p>
+            <p class="record-meta">${[esc(r.datetime.split(' ')[0]), esc(r.location), r.hours + 'h'].filter(Boolean).join(' · ')}</p>
+            ${sumHtml}${noteHtml}${matHtml}
+          </div>`;
+      }).join('');
 
       document.querySelectorAll('#recordList .record').forEach(el => {
         el.addEventListener('click', e => {
           if (e.target.tagName === 'A') return;
-          const pairEl = el.parentElement;
-          const nextEl = pairEl.nextElementSibling;
+          const nextEl = el.nextElementSibling;
           if (nextEl?.classList.contains('edit-row')) {
             if (el.classList.contains('editing')) {
               nextEl.remove();
@@ -418,11 +411,11 @@
         </div>
         <div style="margin-top:12px">
           <div style="font-size:13px;color:#888">요약</div>
-          <textarea class="ed" data-f="summary">${esc(r.summary)}</textarea>
+          <textarea class="ed" data-f="summary">${esc(r.summary.replace(/⏎/g, '\n'))}</textarea>
         </div>
         <div style="margin-top:12px">
           <div style="font-size:13px;color:#888">소감</div>
-          <textarea class="ed" data-f="note">${esc(r.note)}</textarea>
+          <textarea class="ed" data-f="note">${esc(r.note.replace(/⏎/g, '\n'))}</textarea>
         </div>
         <div style="margin-top:12px">
           <div style="font-size:13px;color:#888">자료</div>
@@ -437,7 +430,7 @@
         </p>
         <div class="ed-status" style="font-size:13px;color:#888;margin-top:4px"></div>
       </div>`;
-      el.parentElement.insertAdjacentElement('afterend', editRow);
+      el.insertAdjacentElement('afterend', editRow);
       editRow.querySelector('.ed-drive').addEventListener('click', () => {
         pickerTarget = editRow.querySelector('[data-f="material"]');
         driveTokenClient.requestAccessToken({ prompt: '' });
@@ -448,7 +441,7 @@
 
     async function saveEdit(idx, el) {
       const r = records[idx];
-      const form = el.parentElement.nextElementSibling;
+      const form = el.nextElementSibling;
       const dateVal = form.querySelector('[data-f="date"]').value;
       const timeVal = form.querySelector('[data-f="time"]').value;
       r.datetime = timeVal ? `${dateVal} ${timeVal}` : dateVal;
@@ -509,7 +502,7 @@
       const f = addForm, st = document.getElementById('addStatus');
       st.textContent = '저장 중...';
       const datetime = f.time.value ? `${f.date.value} ${f.time.value}` : f.date.value;
-      const san = s => s.replace(/\|/g, '｜').replace(/\n/g, ' ');
+      const san = s => s.replace(/\|/g, '｜').replace(/\n/g, '⏎');
       const cells = [
         san(f.title.value), san(f.location.value), datetime, f.kind.value,
         (parseFloat(f.hours.value) || 0) + 'h',
