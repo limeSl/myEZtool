@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <title>[연수]</title>
   <style>
-    body { font-family: sans-serif; max-width: 480px; margin: 60px auto; padding: 0 24px; }
+    body { font-family: sans-serif; max-width: 1100px; margin: 60px auto; padding: 0 24px; }
     .header { display: flex; justify-content: space-between; align-items: center; }
     .header h2 { margin: 0; }
     .back { font-size: 13px; color: #aaa; text-decoration: none; }
@@ -16,7 +16,7 @@
       padding: 8px 0; font-size: 16px; outline: none;
       background: transparent; font-family: inherit; color: #333;
     }
-    input:focus, select:focus { border-bottom-color: #333; }
+    input:focus, select:focus, textarea:focus { border-bottom-color: #333; }
     textarea { resize: vertical; border: 1px solid #ccc; padding: 8px; margin-top: 4px; min-height: 60px; }
     textarea:focus { border-color: #333; outline: none; }
     .row { display: flex; gap: 24px; }
@@ -33,13 +33,14 @@
     /* 통계 */
     .stat-line { font-size: 14px; color: #555; margin: 6px 0; }
 
-    /* 연수 목록 */
-    .record { margin: 20px 0 0; padding-bottom: 20px; border-bottom: 1px solid #eee; }
-    .record:last-child { border-bottom: none; }
-    .record-title { font-size: 15px; font-weight: bold; color: #333; margin: 0 0 4px; }
-    .record-meta { font-size: 13px; color: #888; margin: 2px 0; }
-    .record-body { font-size: 14px; color: #555; margin: 4px 0 0; }
-    .record-checks { font-size: 13px; color: #aaa; margin-top: 6px; }
+    /* 연수 목록 테이블 */
+    #recordList table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    #recordList th { text-align: left; color: #888; font-weight: normal; border-bottom: 1px solid #ccc; padding: 4px 8px; white-space: nowrap; }
+    #recordList td { padding: 6px 8px; border-bottom: 1px solid #eee; color: #333; vertical-align: top; word-break: keep-all; }
+    #recordList tr[data-idx]:hover { background: #f9f9f9; cursor: pointer; }
+    #recordList tr.editing { background: #f9f9f9; cursor: default; }
+    #recordList td.col-title { min-width: 160px; }
+    #recordList td.col-summary { min-width: 150px; }
 
     /* Drive 버튼 */
     .material-row { display: flex; align-items: flex-end; gap: 8px; }
@@ -155,6 +156,7 @@
     let driveTokenClient;
     let driveToken = null;
     let pickerReady = false;
+    let pickerTarget = null; // input to fill after picker
 
     if (pat && gistId) showMain();
 
@@ -279,9 +281,10 @@
     function parseMarkdown(text) {
       const rows = text.split('\n').filter(l => l.trim().startsWith('|') && !l.includes('---'));
       if (rows.length <= 1) return [];
-      return rows.slice(1).map(row => {
+      return rows.slice(1).map((row, idx) => {
         const c = row.split('|').map(s => s.trim());
         return {
+          _idx:     idx,
           title:    c[1]  || '',
           location: c[2]  || '',
           datetime: c[3]  || '',
@@ -297,9 +300,22 @@
       }).filter(r => r.title);
     }
 
+    // ── 마크다운 재구성 ───────────────────────────────────────────────
+    function buildMarkdown() {
+      const header =
+        '# 연수 기록\n\n' +
+        '| 연수명 | 장소 | 일시 | 연수종류 | 이수시간 | 요약 | 소감 | 자료 | 수료증 | 나이스 등록 | 학점/호봉 |\n' +
+        '|--------|------|------|--------|--------|------|------|------|--------|------------|---------|';
+      const san = s => String(s).replace(/\|/g, '｜').replace(/\n/g, ' ');
+      const rows = records.map(r =>
+        `| ${san(r.title)} | ${san(r.location)} | ${r.datetime} | ${r.kind} | ${r.hours}h | ${san(r.summary)} | ${san(r.note)} | ${san(r.material)} | ${r.cert} | ${r.neis} | ${r.credit} |`
+      );
+      return header + '\n' + rows.join('\n') + '\n';
+    }
+
     // ── 렌더 ─────────────────────────────────────────────────────────
     function renderView() {
-      const yr = String(new Date().getFullYear());
+      const yr    = String(new Date().getFullYear());
       const total = records.reduce((s, r) => s + r.hours, 0);
       const year  = records.filter(r => r.datetime.startsWith(yr)).reduce((s, r) => s + r.hours, 0);
       const rate  = Math.round(year / 60 * 100);
@@ -312,35 +328,137 @@
 
       const recent = [...records].reverse().slice(0, 20);
       document.getElementById('emptyMsg').hidden = recent.length > 0;
-      document.getElementById('recordList').innerHTML = recent.map(r => {
-        const materialHtml = parseMaterial(r.material);
-        const chk = s => /x/i.test(s) ? '[x]' : '[ ]';
-        return `
-          <div class="record">
-            <p class="record-title">${esc(r.title)}</p>
-            <p class="record-meta">${esc(r.location)} · ${esc(r.datetime)} · ${esc(r.kind)} · ${r.hours}h</p>
-            ${r.summary ? `<p class="record-body">요약: ${esc(r.summary)}</p>` : ''}
-            ${r.note    ? `<p class="record-body">소감: ${esc(r.note)}</p>`    : ''}
-            ${materialHtml ? `<p class="record-body">자료: ${materialHtml}</p>` : ''}
-            <p class="record-checks">수료증 ${chk(r.cert)} · 나이스 ${chk(r.neis)} · 학점/호봉 ${chk(r.credit)}</p>
-          </div>`;
-      }).join('');
+      document.getElementById('recordList').innerHTML = recent.length === 0 ? '' : `
+        <table>
+          <thead><tr>
+            <th>일시</th><th>연수명</th><th>장소</th><th>종류</th><th>시간</th><th>요약</th><th>자료</th>
+          </tr></thead>
+          <tbody>${recent.map(r => `
+            <tr data-idx="${r._idx}">
+              <td>${esc(r.datetime)}</td>
+              <td class="col-title">${esc(r.title)}</td>
+              <td>${esc(r.location)}</td>
+              <td>${esc(r.kind)}</td>
+              <td>${r.hours}h</td>
+              <td class="col-summary">${esc(r.summary)}</td>
+              <td>${parseMaterial(r.material)}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>`;
+
+      document.querySelectorAll('#recordList tr[data-idx]').forEach(el => {
+        el.addEventListener('click', e => {
+          if (e.target.tagName === 'A') return;
+          if (document.querySelector('tr.editing')) return;
+          openEdit(parseInt(el.dataset.idx), el);
+        });
+      });
     }
 
     function parseMaterial(raw) {
       if (!raw) return '';
       const mdLink = raw.match(/\[([^\]]+)\]\(([^)]+)\)/);
-      if (mdLink) return `<a href="${esc(mdLink[2])}" target="_blank">${esc(mdLink[1])}</a>`;
-      if (raw.startsWith('http')) return `<a href="${esc(raw)}" target="_blank">자료 열기</a>`;
+      if (mdLink) return `<a href="${ea(mdLink[2])}" target="_blank">${esc(mdLink[1])}</a>`;
+      if (raw.startsWith('http')) return `<a href="${ea(raw)}" target="_blank">자료 열기</a>`;
       return esc(raw);
+    }
+
+    // ── 인라인 편집 ───────────────────────────────────────────────────
+    function openEdit(idx, el) {
+      el.classList.add('editing');
+      const r = records[idx];
+      const dtParts = r.datetime.split(' ');
+      const dateVal = dtParts[0] || '';
+      const timeVal = dtParts[1] || '';
+      const editRow = document.createElement('tr');
+      editRow.className = 'edit-row';
+      editRow.innerHTML = `<td colspan="7" style="padding:16px 8px;background:#fff">
+        <div style="font-size:13px;color:#888;margin-bottom:2px">연수명</div>
+        <input class="ed" data-f="title" value="${ea(r.title)}">
+        <div style="display:flex;gap:24px;margin-top:12px">
+          <div style="flex:1">
+            <div style="font-size:13px;color:#888">날짜</div>
+            <input class="ed" data-f="date" type="date" value="${dateVal}">
+          </div>
+          <div style="flex:1">
+            <div style="font-size:13px;color:#888">시간</div>
+            <input class="ed" data-f="time" type="time" value="${timeVal}">
+          </div>
+        </div>
+        <div style="margin-top:12px">
+          <div style="font-size:13px;color:#888">장소</div>
+          <input class="ed" data-f="location" value="${ea(r.location)}">
+        </div>
+        <div style="display:flex;gap:24px;margin-top:12px">
+          <div style="flex:1">
+            <div style="font-size:13px;color:#888">연수종류</div>
+            <select class="ed" data-f="kind">
+              ${['직무','자율','특수'].map(k => `<option${r.kind===k?' selected':''}>${k}</option>`).join('')}
+            </select>
+          </div>
+          <div style="flex:1">
+            <div style="font-size:13px;color:#888">이수시간</div>
+            <input class="ed" data-f="hours" type="number" min="0" step="0.5" value="${r.hours}">
+          </div>
+        </div>
+        <div style="margin-top:12px">
+          <div style="font-size:13px;color:#888">요약</div>
+          <textarea class="ed" data-f="summary">${esc(r.summary)}</textarea>
+        </div>
+        <div style="margin-top:12px">
+          <div style="font-size:13px;color:#888">소감</div>
+          <textarea class="ed" data-f="note">${esc(r.note)}</textarea>
+        </div>
+        <div style="margin-top:12px">
+          <div style="font-size:13px;color:#888">자료</div>
+          <div style="display:flex;gap:8px;align-items:flex-end">
+            <input class="ed" data-f="material" value="${ea(r.material)}" style="flex:1">
+            <button type="button" class="ed-drive" style="white-space:nowrap;font-family:inherit;cursor:pointer;font-size:14px">Drive</button>
+          </div>
+        </div>
+        <p style="margin-top:16px">
+          <button type="button" class="ed-save">저장</button>
+          <button type="button" class="ed-cancel" style="margin-left:12px;color:#aaa;background:none;border:none;cursor:pointer;font-family:inherit;font-size:16px">취소</button>
+        </p>
+        <div class="ed-status" style="font-size:13px;color:#888;margin-top:4px"></div>
+      </td>`;
+      el.insertAdjacentElement('afterend', editRow);
+      editRow.querySelector('.ed-drive').addEventListener('click', () => {
+        pickerTarget = editRow.querySelector('[data-f="material"]');
+        driveTokenClient.requestAccessToken({ prompt: '' });
+      });
+      editRow.querySelector('.ed-save').addEventListener('click', () => saveEdit(idx, el));
+      editRow.querySelector('.ed-cancel').addEventListener('click', () => renderView());
+    }
+
+    async function saveEdit(idx, el) {
+      const r = records[idx];
+      const form = el.nextElementSibling;
+      const dateVal = form.querySelector('[data-f="date"]').value;
+      const timeVal = form.querySelector('[data-f="time"]').value;
+      r.datetime = timeVal ? `${dateVal} ${timeVal}` : dateVal;
+      r.title    = form.querySelector('[data-f="title"]').value;
+      r.location = form.querySelector('[data-f="location"]').value;
+      r.kind     = form.querySelector('[data-f="kind"]').value;
+      r.hours    = parseFloat(form.querySelector('[data-f="hours"]').value) || 0;
+      r.summary  = form.querySelector('[data-f="summary"]').value;
+      r.note     = form.querySelector('[data-f="note"]').value;
+      r.material = form.querySelector('[data-f="material"]').value;
+
+      const st = form.querySelector('.ed-status');
+      st.textContent = '저장 중...';
+      try {
+        await saveGist(buildMarkdown());
+        records = parseMarkdown(currentContent);
+        renderView();
+      } catch (err) {
+        st.textContent = '오류: ' + err.message;
+      }
     }
 
     // ── Google Drive Picker ───────────────────────────────────────────
     document.getElementById('driveBtn').addEventListener('click', () => {
-      if (!GOOGLE_API_KEY) {
-        alert('GOOGLE_API_KEY를 코드에 입력해야 Drive 피커를 사용할 수 있어요.\nGoogle Cloud Console > APIs & Services > 사용자 인증 정보 > API 키');
-        return;
-      }
+      pickerTarget = null;
       driveTokenClient.requestAccessToken({ prompt: '' });
     });
 
@@ -360,7 +478,10 @@
         const doc  = data[google.picker.Response.DOCUMENTS][0];
         const name = doc[google.picker.Document.NAME];
         const url  = doc[google.picker.Document.URL];
-        document.getElementById('materialInput').value = `[${name}](${url})`;
+        const val  = `[${name}](${url})`;
+        const target = pickerTarget || document.getElementById('materialInput');
+        target.value = val;
+        pickerTarget = null;
       }
     }
 
@@ -396,6 +517,9 @@
 
     function esc(s) {
       return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+    function ea(s) {
+      return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
   </script>
 </body>
